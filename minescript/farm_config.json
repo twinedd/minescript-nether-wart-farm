@@ -1,0 +1,16 @@
+{
+  "maturityThreshold": 0.85,
+  "checkIntervalSeconds": 20,
+  "harvestPollSeconds": 5,
+  "harvestTimeoutSeconds": 900,
+  "stallSeconds": 45,
+  "maxFarmRestarts": 6,
+  "minFreeSlotsBeforeStart": 10,
+  "cashOutAtFreeSlots": 8,
+  "scanRadius": 40,
+  "scanVerticalRadius": 20,
+  "rescanSeconds": 180,
+  "minFarmCells": 4,
+  "chestScanRadius": 24,
+  "chestVerticalRadius": 16
+}

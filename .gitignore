@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.log
+*.stop
+*.running
+*.status.json
+.gradle/
+build/
+out/
+.idea/
+.vscode/
+baritone/**/build/
+baritone/.gradle/
+baritone/.git/
