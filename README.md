@@ -1,110 +1,60 @@
-# Nether Wart Farm — Minescript + Baritone (Minecraft 1.21.11)
+# Nether Wart Farm for Minecraft 1.21.11
 
-Автоматический сбор и повторная посадка незерского нароста. Скрипт находит
-засаженные грядки на нескольких этажах, ждёт созревания, запускает Baritone и
-складывает урожай в обычные сундуки. Он **не продаёт** предметы, не выполняет
-вход на сервер и не обходит серверные проверки. Minecraft должен оставаться
-запущенным. Используйте автоматизацию там, где это разрешено правилами мира
-или сервера.
+Automates nether wart harvesting and replanting with **Minescript + Baritone**.
+It finds nearby farm floors, waits until 85% of a floor is mature, and puts
+extra wart in chests. It does **not** sell items or log in to servers.
 
-## Установка
+## Install
 
-1. Установите **Minecraft Java Edition 1.21.11** и [Fabric Loader](https://fabricmc.net/use/?version=1.21.11)
-   для этой версии. Для Minecraft 1.21.11 нужен Java 21.
-2. Скачайте совместимые с **Fabric 1.21.11** [Fabric API](https://modrinth.com/mod/fabric-api)
-   и [Minescript 5.x](https://minescript.net/downloads/). Поместите оба JAR в
-   папку `mods` вашего экземпляра Minecraft.
-3. Скачайте этот репозиторий через **Code → Download ZIP** или `git clone`.
-   Скопируйте `mods/baritone-fabric-1.21.11-netherwart.jar` из репозитория
-   в ту же папку `mods`. Удалите другой Baritone JAR для этого профиля, чтобы
-   не загружать две копии мода.
-4. Запустите Minecraft с профилем Fabric хотя бы один раз: Minescript создаст
-   папку `minescript` внутри папки игры. Скопируйте **содержимое** каталога
-   `minescript/` этого репозитория туда. Все файлы `.py` и `farm_config.json`
-   должны лежать непосредственно в папке игры `minescript`, не во вложенной
-   папке `minescript/minescript`.
-5. Скрипты `.py` исполняются через установленный Python 3. На Windows
-   проверьте `python --version`. В чате Minecraft выполните
-   `\install_mappings` — это необходимо для Java-моста Minescript на Fabric.
-6. Поставьте обычный или двойной сундук в пределах 24 блоков по горизонтали
-   и 16 по вертикали от места запуска. Рядом с сундуком нужна проходимая
-   клетка. Возьмите хотя бы один нарост для посадки, освободите не меньше
-   десяти ячеек инвентаря и встаньте примерно по центру фермы.
+1. Install [Fabric Loader](https://fabricmc.net/use/?version=1.21.11) for
+   Minecraft Java **1.21.11**. Use Java 21.
+2. Put the 1.21.11 Fabric versions of [Fabric API](https://modrinth.com/mod/fabric-api),
+   [Minescript 5.x](https://minescript.net/downloads/), and this repository's
+   [`baritone-fabric-1.21.11-netherwart.jar`](mods/baritone-fabric-1.21.11-netherwart.jar)
+   in your Minecraft instance's `mods` folder. Remove any other Baritone JAR
+   from that folder.
+3. Install Python 3. Copy the **files inside** this repository's `minescript`
+   folder into the instance's `minescript` folder. Start Minecraft and run
+   `\install_mappings` once in chat.
 
-Для TLauncher путь к экземпляру может отличаться. В профиле, на котором
-проводилась разработка, это
-`%APPDATA%\.tlauncher\legacy\Minecraft\game`; файлы модов находятся в
-`game\mods`, скрипты — в `game\minescript`. В другом лаунчере используйте
-**папку игры выбранного профиля**.
+The instance folder is usually `.minecraft`. With some TLauncher profiles it
+is `%APPDATA%\.tlauncher\legacy\Minecraft\game`. Use the folder of the
+profile you actually launch.
 
-## Команды в игровом чате
+## Use
 
-| Команда | Что делает |
+Place an accessible chest within **24 blocks horizontally and 16 vertically**
+of your starting spot. Keep one nether wart for planting and at least ten
+inventory slots free. Stand near the center of your farm, then use these
+commands in Minecraft chat:
+
+| Command | Action |
 | --- | --- |
-| `\farm_probe` | Показывает найденные грядки, их зрелость и количество сундуков; ничего не ломает. |
-| `\start` | Постоянный цикл: ожидание → сбор → посадка → сундуки. |
-| `\start once` | Ждёт готовности и выполняет один цикл сбора. |
-| `\farm_status` | Показывает последнее состояние контроллера. |
-| `\stop` | Останавливает контроллер и Baritone. |
+| `\farm_probe` | Check detected floors and chests without harvesting. |
+| `\start` | Keep checking, harvesting, replanting, and storing wart. |
+| `\start once` | Wait for one harvest cycle, then stop. |
+| `\farm_status` | Show the latest status. |
+| `\stop` | Stop the script and Baritone. |
 
-Сначала выполните `\farm_probe`. Если он видит все этажи и сундуки, запустите
-`\start`. Убедитесь по сообщению `ГОТОВ`, что контроллер начал работу.
-По умолчанию сбор начинается, когда созрели **85%** растений на конкретной
-грядке. Незаконченная грядка с пустыми клетками обрабатывается повторно после
-перезапуска, чтобы восстановить посадку. Скрипт оставляет один стак нароста в
-инвентаре для посадки и раскладывает остальные стаки по найденным сундукам.
-При заполнении инвентаря он прерывает сбор, освобождает место и продолжает.
-Если сундуки заполнены или недоступны, он прекращает сбор до переполнения.
+Run `\farm_probe` first. If it misses a floor, move closer to the farm's
+center and make sure the area is loaded. A farm needs at least one planted
+wart to be detected. The script keeps one wart stack for replanting, uses
+another chest if the first is full, and stops if it cannot store the harvest.
 
-## Настройки
+You can change the 85% threshold and scan distances in `farm_config.json`.
+For errors, check `farm.log` in the game's `minescript` folder. Minecraft must
+stay open; join servers and complete their login steps yourself. The modified
+Baritone JAR was tested on Fabric 1.21.11, while this public chest-only script
+has automated tests but has not been tested on other servers.
 
-Редактируйте `farm_config.json` **в папке игры** при остановленном скрипте.
-Главные параметры:
+The modified Baritone source and build notes are in
+[BARITONE_CHANGES.md](BARITONE_CHANGES.md). The Minescript scripts are MIT
+licensed; Baritone retains its LGPL-3.0 license.
 
-| Параметр | По умолчанию | Назначение |
-| --- | ---: | --- |
-| `maturityThreshold` | `0.85` | Доля зрелых растений для начала сбора. |
-| `scanRadius` | `40` | Горизонтальный радиус поиска грядок от точки запуска. |
-| `scanVerticalRadius` | `20` | Вертикальный радиус поиска этажей. |
-| `chestScanRadius` | `24` | Горизонтальный радиус поиска сундуков. |
-| `chestVerticalRadius` | `16` | Вертикальный радиус поиска сундуков. |
-| `checkIntervalSeconds` | `20` | Пауза между проверками роста. |
-| `cashOutAtFreeSlots` | `8` | Сколько свободных ячеек остаётся до промежуточной выгрузки. |
+## Кратко по-русски
 
-Область фермы и путь к сундуку должны быть загружены клиентом. Если при
-`\farm_probe` показано, что грядка обрезана границей обзора, встаньте ближе к
-центру или увеличьте дальность прорисовки/радиус сканирования. Не ставьте
-`scanRadius` выше области, которую клиент реально загрузил. Для трёх этажей
-30×30 начните рядом с центром здания, чтобы все уровни попали в область
-сканирования. Скрипт обнаруживает грядку по песку душ с хотя бы одним
-посаженным наростом; полностью пустую грядку он не распознает.
-
-Файлы `farm.log` и `farm.status.json` создаются рядом со скриптами. Если
-сбор остановился, выполните `\farm_status` и посмотрите последние строки
-`farm.log`. Для диагностики проблемы сообщите фазу `ОШИБКА` и текст ошибки,
-но не публикуйте в открытом issue координаты базы или приватные данные.
-
-## Совместимость и исходники
-
-Модифицированный Baritone проверен в Fabric-клиенте Minecraft 1.21.11, а
-логика публичного скрипта прошла автоматические тесты. На чужих серверах
-публичная версия ещё не проверялась. Скрипт рассчитан как на одиночный мир,
-так и на игру после ручного входа на сервер. Механика
-чужих серверов, ограничения античита и интерфейсы нестандартных хранилищ
-могут отличаться. В репозитории лежат модифицированный Baritone JAR и его
-соответствующие исходники; перечень изменений и команда сборки указаны в
-[BARITONE_CHANGES.md](BARITONE_CHANGES.md). Minescript и Fabric API нужно
-скачать отдельно с официальных страниц. Скрипты `minescript/` доступны по
-MIT-лицензии; Baritone сохраняет свою исходную лицензию LGPL-3.0.
-
-## English quick start
-
-Install Minecraft Java 1.21.11 with Fabric Loader, Fabric API and Minescript
-5.x. Put `mods/baritone-fabric-1.21.11-netherwart.jar` in your instance's
-`mods` directory, and copy the contents of this repository's `minescript/`
-directory into the game's `minescript` directory. Install Python 3 for `.py`
-scripts and run `\install_mappings` once in the game chat. Place an accessible
-chest within 24 horizontal / 16 vertical blocks of the starting position,
-carry at least one nether wart, keep ten inventory slots free, then run
-`\farm_probe` followed by `\start`. Use `\start once` for one harvest and
-`\stop` to halt. It stores surplus wart in chests; it does not sell items.
+Установите Fabric 1.21.11, Fabric API, Minescript, Python 3 и JAR Baritone из
+репозитория. Файлы из `minescript/` положите в папку скриптов игры. В чате
+выполните `\install_mappings`, затем `\farm_probe` и `\start`.
+Бот собирает и сажает нарост, излишки кладёт в ближайшие сундуки.
+Остановка — `\stop`; продажи и автоматического входа нет.

@@ -6,4 +6,4 @@ import minescript
 folder = Path(__file__).resolve().parent
 (folder / "farm.stop").write_text("stop", encoding="utf-8")
 minescript.chat("#stop")
-minescript.echo("[FARM] Остановка запрошена.")
+minescript.echo("[FARM] Stop requested.")

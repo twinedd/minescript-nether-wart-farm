@@ -10,6 +10,6 @@ if path.exists():
         data = json.loads(path.read_text(encoding="utf-8"))
         minescript.echo("[FARM]", data.get("phase"), data.get("detail", ""))
     except (OSError, ValueError):
-        minescript.echo("[FARM] Файл состояния повреждён; подробности смотрите в farm.log.")
+        minescript.echo("[FARM] Status file is damaged; see farm.log for details.")
 else:
-    minescript.echo("[FARM] Ещё не запускался.")
+    minescript.echo("[FARM] Not started yet.")

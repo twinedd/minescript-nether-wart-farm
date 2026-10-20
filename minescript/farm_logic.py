@@ -123,7 +123,7 @@ def discover_farms(region, min_cells=4):
 
 def survey_from_blocks(cells, soil_blocks, crop_blocks):
     if len(cells) != len(soil_blocks) or len(cells) != len(crop_blocks):
-        raise ValueError("Неполный ответ сканирования мира")
+        raise ValueError("Incomplete world scan response")
     mature = young = empty = 0
     invalid = []
     for pos, soil, crop in zip(cells, soil_blocks, crop_blocks):

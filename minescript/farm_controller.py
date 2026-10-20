@@ -32,7 +32,7 @@ def report(phase, detail="", *, echo=False):
 
 def halted():
     if STOP.exists():
-        raise InterruptedError("Остановлено командой \\stop")
+        raise InterruptedError("Stopped with \\stop")
 
 
 def pause(seconds):
@@ -67,7 +67,7 @@ def survey(farm):
     result = survey_from_blocks(farm.cells, soil, crop)
     if result.invalid:
         sample = result.invalid[:3]
-        raise RuntimeError(f"Грядка не загружена или изменилась: {sample}")
+        raise RuntimeError(f"Farm is not loaded or has changed: {sample}")
     return result
 
 
@@ -84,28 +84,28 @@ def scan_farms(origin):
                 [cx - radius, cy - vertical - 1, cz - radius],
                 [cx + radius, cy + vertical, cz + radius])
         except Exception as exc:
-            errors.append(f"радиус {radius}: {type(exc).__name__}: {exc}")
+            errors.append(f"radius {radius}: {type(exc).__name__}: {exc}")
             continue
         found = discover_farms(region, CONFIG["minFarmCells"])
         complete = tuple(farm for farm in found if not farm.truncated)
         incomplete = tuple(farm for farm in found if farm.truncated)
         if incomplete:
-            report("СКАН", f"За границей обзора {radius} блоков: " +
+            report("SCAN", f"Beyond the {radius}-block scan area: " +
                    "; ".join(f.name for f in incomplete))
-            raise RuntimeError("Часть грядок обрезана границей обзора; встаньте ближе к центру фермы")
+            raise RuntimeError("Some farms extend beyond the scan area; move closer to the farm center")
         if not complete:
-            raise RuntimeError("Грядки с наростом не найдены" +
+            raise RuntimeError("No planted nether wart farms found" +
                                ("; " + "; ".join(errors) if errors else ""))
-        report("СКАН", f"Найдено {len(complete)} грядок на {sum(len(f.cells) for f in complete)} клетках: " +
+        report("SCAN", f"Found {len(complete)} farms with {sum(len(f.cells) for f in complete)} cells: " +
                "; ".join(f"{f.name} ({len(f.cells)})" for f in complete), echo=True)
         return complete
-    raise RuntimeError("Нет полностью загруженной области для сканирования: " + "; ".join(errors))
+    raise RuntimeError("No fully loaded scan area: " + "; ".join(errors))
 
 
 def check_location():
     world = ms.world_info()
     if world is None:
-        raise RuntimeError("Сначала войдите в мир или на сервер")
+        raise RuntimeError("Join a world or server first")
     return world_mode(world.address)
 
 
@@ -138,7 +138,7 @@ def baritone_farm_active():
         return bool(api.getProvider().getPrimaryBaritone().getFarmProcess().isActive())
     except Exception as exc:
         _baritone_query_unavailable = True
-        report("ДИАГНОСТИКА", f"Не удалось прочитать состояние Baritone: {exc}")
+        report("DIAGNOSTIC", f"Could not read Baritone state: {exc}")
         return None
 
 
@@ -146,7 +146,7 @@ def click_slot(slot, button=0, quick_move=False, before_inventory=None):
     from java import JavaClass
     mc = java_client()
     if ms.container_get_items() is None:
-        raise RuntimeError("Меню закрылось перед нажатием")
+        raise RuntimeError("Menu closed before the click")
     if quick_move and before_inventory is None:
         before_inventory = inventory_wart()
     click = JavaClass("net.minecraft.world.inventory.ClickType")
@@ -186,7 +186,7 @@ def wait_menu(predicate, seconds=8):
         if items is not None and predicate(items):
             return items
         time.sleep(0.15)
-    raise TimeoutError(f"Ожидание меню: {ms.screen_name()!r}")
+    raise TimeoutError(f"Timed out waiting for menu: {ms.screen_name()!r}")
 
 
 def chest_distance(chest):
@@ -209,9 +209,9 @@ def find_storage(origin):
                 [cx + radius, cy + vertical, cz + radius])
             break
         except Exception as exc:
-            errors.append(f"радиус {radius}: {exc}")
+            errors.append(f"radius {radius}: {exc}")
     if region is None:
-        report("ХРАНИЛИЩЕ", "Не удалось просканировать сундуки: " + "; ".join(errors))
+        report("STORAGE", "Could not scan for chests: " + "; ".join(errors))
         return ()
     plans = []
     for y in range(region.min_pos[1] + 1, region.max_pos[1]):
@@ -239,9 +239,9 @@ def find_storage(origin):
     plans.sort(key=lambda plan: math.dist(
         (plan["chest"]["x"], plan["chest"]["y"], plan["chest"]["z"]), origin))
     if plans:
-        report("ХРАНИЛИЩЕ", f"Найдено {len(plans)} сундуков рядом; первый {plans[0]['chest']}", echo=True)
+        report("STORAGE", f"Found {len(plans)} nearby chests; first {plans[0]['chest']}", echo=True)
     else:
-        report("ХРАНИЛИЩЕ", "Сундук рядом не найден; урожай останется в инвентаре", echo=True)
+        report("STORAGE", "No nearby chest found; harvest stays in inventory", echo=True)
     return tuple(plans)
 
 
@@ -251,7 +251,7 @@ def approach_chest(plan):
     for p in approaches[:3]:
         if at_approach(ms.player_position(), p):
             return
-        report("ПУТЬ", f"Иду вплотную к сундуку {chest}, точка {p}")
+        report("PATH", f"Moving next to chest {chest}, target {p}")
         command(f"goto {p['x']} {p['y']} {p['z']}")
         deadline = time.monotonic() + 35
         while time.monotonic() < deadline:
@@ -260,16 +260,16 @@ def approach_chest(plan):
                 return
             pause(0.4)
         command("stop")
-    raise TimeoutError(f"Baritone не дошёл до соседней клетки у сундука {chest}; "
-                       f"пробовал {approaches[:3]}")
+    raise TimeoutError(f"Baritone could not reach a block next to chest {chest}; "
+                       f"tried {approaches[:3]}")
 
 
 def open_chest(chest):
     if chest_distance(chest) > 4.4:
-        raise RuntimeError(f"Сундук слишком далеко: {chest}")
+        raise RuntimeError(f"Chest is too far away: {chest}")
     block = ms.getblock(chest["x"], chest["y"], chest["z"])
     if not block or "chest" not in block:
-        raise RuntimeError(f"На координатах нет сундука: {chest}, виден {block}")
+        raise RuntimeError(f"No chest at {chest}; found {block}")
     for height in (0.6, 0.85, 0.4):
         ms.player_look_at(chest["x"] + 0.5, chest["y"] + height, chest["z"] + 0.5)
         pause(0.15)
@@ -282,18 +282,18 @@ def open_chest(chest):
             count = menu_size() - 36
             if count not in (27, 54):
                 close_menu()
-                raise RuntimeError(f"Открылось не меню сундука: {ms.screen_name()}, слотов {count}")
-            report("СУНДУК", f"Открыт {chest}, {count} слотов")
+                raise RuntimeError(f"Opened a non-chest menu: {ms.screen_name()}, {count} slots")
+            report("CHEST", f"Opened {chest}, {count} slots")
             return count
-    raise RuntimeError(f"Не удаётся навести прицел на сундук {chest}")
+    raise RuntimeError(f"Could not aim at chest {chest}")
 
 
 def store_in_chests(plans, *, required=False):
     """Deposit extra wart stacks while retaining one stack for replanting."""
     if not plans:
         if required:
-            raise RuntimeError("Инвентарь заполняется. Поставьте сундук рядом с местом запуска")
-        report("ХРАНИЛИЩЕ", f"Сундука нет; {inventory_wart()} нароста осталось в инвентаре", echo=True)
+            raise RuntimeError("Inventory is filling up. Place a chest near the starting point")
+        report("STORAGE", f"No chest; {inventory_wart()} wart remains in inventory", echo=True)
         return 0
     moved = 0
     threshold = CONFIG["cashOutAtFreeSlots"]
@@ -305,7 +305,7 @@ def store_in_chests(plans, *, required=False):
             approach_chest(plan)
             size = open_chest(chest)
         except Exception as exc:
-            report("ХРАНИЛИЩЕ", f"Пропускаю сундук {chest}: {exc}")
+            report("STORAGE", f"Skipping chest {chest}: {exc}")
             continue
         try:
             while True:
@@ -327,11 +327,11 @@ def store_in_chests(plans, *, required=False):
         finally:
             close_menu()
     if moved:
-        report("ХРАНИЛИЩЕ", f"Сложено {moved} нароста; {inventory_wart()} оставлено для посадки", echo=True)
+        report("STORAGE", f"Stored {moved} wart; kept {inventory_wart()} for replanting", echo=True)
     if wart_stack_count() > 1:
-        raise RuntimeError("Не удалось переложить весь лишний нарост: сундуки заполнены или недоступны")
+        raise RuntimeError("Could not store all extra wart: chests are full or unreachable")
     if required and free_slots() <= threshold:
-        raise RuntimeError("Сундуки заполнены или недоступны; сбор остановлен до переполнения инвентаря")
+        raise RuntimeError("Chests are full or unreachable; harvest stopped before inventory overflow")
     return moved
 
 
@@ -342,11 +342,11 @@ def cash_out(resume, storage):
 
 def harvest(farm, mode, storage, progress):
     if free_slots() < CONFIG["minFreeSlotsBeforeStart"]:
-        raise RuntimeError(f"Мало свободных ячеек ({free_slots()}); освободите инвентарь")
+        raise RuntimeError(f"Not enough free inventory slots ({free_slots()}); make room first")
     initial = survey(farm)
     configure_baritone(farm)
     command("farm")
-    report("СБОР", f"Этаж {progress}: Baritone запущен на {len(farm.cells)} клетках: {farm.name}", echo=True)
+    report("HARVEST", f"Floor {progress}: Baritone started on {len(farm.cells)} cells: {farm.name}", echo=True)
     start_time = last_change = time.monotonic()
     previous = None
     completed_polls = 0
@@ -359,7 +359,7 @@ def harvest(farm, mode, storage, progress):
         wart = inventory_wart()
         active = baritone_farm_active()
         x, y, z = ms.player_position()
-        report("СБОР", f"Этаж {progress}, Y={farm.y}: зрелых {state.mature}, молодых {state.young}, пустых {state.empty}, нароста {wart}, свободно {free_slots()}, Baritone={active}, позиция=({x:.1f},{y:.1f},{z:.1f})")
+        report("HARVEST", f"Floor {progress}, Y={farm.y}: mature {state.mature}, young {state.young}, empty {state.empty}, wart {wart}, free slots {free_slots()}, Baritone={active}, position=({x:.1f},{y:.1f},{z:.1f})")
         if state.empty > 0 or state.mature != initial.mature or state.young != initial.young:
             saw_work = True
         if current != previous:
@@ -372,43 +372,43 @@ def harvest(farm, mode, storage, progress):
             completed_polls += 1
             if completed_polls >= 3:
                 if state.mature:
-                    report("СБОР", f"Этаж {progress}: осталось {state.mature}/{state.total} зрелых; "
-                           "все клетки засажены, перехожу к хранению", echo=True)
+                    report("HARVEST", f"Floor {progress}: {state.mature}/{state.total} mature left; "
+                           "all cells replanted, moving to storage", echo=True)
                 return state
             continue
         else:
             completed_polls = 0
         storage_threshold = CONFIG["cashOutAtFreeSlots"]
         if free_slots() <= storage_threshold:
-            report("ПАУЗА", "Инвентарь заполняется; освобождаю место", echo=True)
+            report("PAUSE", "Inventory is filling up; storing wart", echo=True)
             cash_out(resume=True, storage=storage)
             command("farm")
             last_change = time.monotonic()
         elif active is False and (state.mature > 0 or state.empty > 0):
             if restarts >= CONFIG["maxFarmRestarts"]:
-                raise TimeoutError(f"Baritone {restarts} раз завершился до конца сбора: {state}")
+                raise TimeoutError(f"Baritone stopped {restarts} times before harvest finished: {state}")
             restarts += 1
             if wart == 0 and state.empty > 0:
                 # Give dropped wart time to reach the inventory before restarting.
                 pause(2)
-            report("ПОВТОР", f"Baritone остановился до посадки всех клеток; перезапуск {restarts}/{CONFIG['maxFarmRestarts']}", echo=True)
+            report("RETRY", f"Baritone stopped before all cells were replanted; restart {restarts}/{CONFIG['maxFarmRestarts']}", echo=True)
             command("farm")
             last_change = time.monotonic()
         elif time.monotonic() - last_change >= CONFIG["stallSeconds"]:
             if restarts >= CONFIG["maxFarmRestarts"]:
-                raise TimeoutError(f"Baritone остановился на грядке: {state}")
+                raise TimeoutError(f"Baritone stalled on the farm: {state}")
             restarts += 1
-            report("ПОВТОР", f"Нет изменений {CONFIG['stallSeconds']} сек.; перезапуск Baritone {restarts}/{CONFIG['maxFarmRestarts']}", echo=True)
+            report("RETRY", f"No changes for {CONFIG['stallSeconds']} seconds; restarting Baritone {restarts}/{CONFIG['maxFarmRestarts']}", echo=True)
             command("stop")
             command("farm")
             last_change = time.monotonic()
-    raise TimeoutError("Превышено время сбора; Baritone остановлен")
+    raise TimeoutError("Harvest timed out; Baritone stopped")
 
 
 def main():
     args = {arg.lower() for arg in sys.argv[1:]}
     if args - {"once"}:
-        ms.echo("Использование: \\start [once]")
+        ms.echo("Usage: \\start [once]")
         return
     once = "once" in args
     lock = ROOT / "farm.running"
@@ -419,9 +419,9 @@ def main():
         except (OSError, ValueError, KeyError):
             pass
         if recent:
-            ms.echo("[FARM] Уже запущен. Используйте \\farm_status или \\stop.")
+            ms.echo("[FARM] Already running. Use \\farm_status or \\stop.")
             return
-        report("ВОССТАНОВЛЕНИЕ", "Удаляю устаревшую блокировку после предыдущего сбоя", echo=True)
+        report("RECOVERY", "Removing a stale lock after the previous run ended", echo=True)
     STOP.unlink(missing_ok=True)
     lock.write_text(str(time.time()), encoding="utf-8")
     try:
@@ -431,26 +431,26 @@ def main():
         farms = scan_farms(origin)
         storage = find_storage(origin)
         if not storage:
-            raise RuntimeError("Сундук для урожая не найден. Поставьте доступный сундук рядом с местом запуска и проверьте через \\farm_probe")
+            raise RuntimeError("No harvest chest found. Place an accessible chest nearby and check with \\farm_probe")
         # Clear leftover harvest from an earlier run before evaluating inventory space.
         store_in_chests(storage)
         next_scan = time.monotonic() + CONFIG["rescanSeconds"]
-        report("ГОТОВ", f"{len(farms)} грядок; {'одиночный мир' if mode == 'singleplayer' else 'сервер'}; "
-               "урожай складывается в сундуки", echo=True)
+        report("READY", f"{len(farms)} farms; {'singleplayer' if mode == 'singleplayer' else 'server'}; "
+               "harvest goes into chests", echo=True)
         while True:
             halted()
             if time.monotonic() >= next_scan:
                 farms = scan_farms(origin)
                 storage = find_storage(origin)
                 if not storage:
-                    raise RuntimeError("Сундук для урожая больше не виден; сбор остановлен")
+                    raise RuntimeError("Harvest chest is no longer visible; harvest stopped")
                 next_scan = time.monotonic() + CONFIG["rescanSeconds"]
             ready = []
             for farm in farms:
                 state = survey(farm)
                 needed = maturity_target(state.total, CONFIG["maturityThreshold"])
-                report("ОЖИДАНИЕ", f"{farm.name}: зрелых {state.mature}/{state.total} "
-                       f"({state.ratio:.0%}), нужно {needed}")
+                report("WAIT", f"{farm.name}: mature {state.mature}/{state.total} "
+                       f"({state.ratio:.0%}), need {needed}")
                 if needs_harvest(state, CONFIG["maturityThreshold"]):
                     ready.append(farm)
             harvested_any = False
@@ -460,18 +460,18 @@ def main():
                 if not needs_harvest(state, CONFIG["maturityThreshold"]):
                     continue
                 progress = f"{index}/{len(ready)}"
-                report("ЦИКЛ", f"Этаж {progress}; Y={farm.y}; начинаю {farm.name}: зрелых {state.mature}/{state.total}", echo=True)
+                report("CYCLE", f"Floor {progress}; Y={farm.y}; starting {farm.name}: mature {state.mature}/{state.total}", echo=True)
                 harvest(farm, mode, storage, progress)
                 cash_out(resume=False, storage=storage)
-                report("ЦИКЛ", f"{farm.name}: сбор и посадка завершены; урожай сохранён", echo=True)
+                report("CYCLE", f"{farm.name}: harvest and replanting complete; wart stored", echo=True)
                 harvested_any = True
             if once and harvested_any:
                 break
             pause(CONFIG["checkIntervalSeconds"])
     except InterruptedError as exc:
-        report("СТОП", str(exc), echo=True)
+        report("STOP", str(exc), echo=True)
     except Exception as exc:
-        report("ОШИБКА", f"{type(exc).__name__}: {exc}", echo=True)
+        report("ERROR", f"{type(exc).__name__}: {exc}", echo=True)
         with LOG.open("a", encoding="utf-8") as out:
             traceback.print_exc(file=out)
     finally:
