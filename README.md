@@ -17,7 +17,7 @@ extra wart in chests. It does **not** sell items or log in to servers.
    folder into the instance's `minescript` folder. Start Minecraft and run
    `\install_mappings` once in chat.
 
-The instance folder is usually `.minecraft`. With some TLauncher profiles it
+The instance folder is usually `.minecraft`. With some Launcher profiles it
 is `%APPDATA%\.tlauncher\legacy\Minecraft\game`. Use the folder of the
 profile you actually launch.
 
