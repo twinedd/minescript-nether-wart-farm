@@ -159,15 +159,15 @@ def click_slot(slot, button=0, quick_move=False, before_inventory=None):
     if not quick_move:
         pause(0.4)
         return None
-    # Space chest clicks at a modest rate, then wait for the inventory update
-    # before sending the next one. A slow server naturally slows the transfer.
-    pause(0.24)
+    # Keep a short gap between chest clicks, then wait for the inventory
+    # update before sending another. A slow server still controls the pace.
+    pause(0.10)
     deadline = time.monotonic() + 1.0
     while time.monotonic() < deadline:
         after = inventory_wart()
         if after != before_inventory:
             return after
-        pause(0.08)
+        pause(0.05)
     return inventory_wart()
 
 
