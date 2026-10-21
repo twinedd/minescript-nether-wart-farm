@@ -4,6 +4,7 @@ __pycache__/
 *.stop
 *.running
 *.status.json
+farm.chest_selection.*
 .gradle/
 build/
 out/

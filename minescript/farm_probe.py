@@ -22,7 +22,8 @@ try:
         ms.echo(f"[FARM PROBE] {farm.name}: {state.total} cells; mature {state.mature}, "
                 f"young {state.young}, empty {state.empty}; threshold {target}.")
     storage = find_storage(origin)
-    ms.echo(f"[FARM PROBE] Accessible harvest chests: {len(storage)}.")
+    ms.echo(f"[FARM PROBE] Nearby chest candidates: {len(storage)}. "
+            "Select storage chests by right-clicking them after \\start.")
     ms.echo("[FARM PROBE] Minescript, block scanning, and the Java bridge are working.")
 except Exception as exc:
     ms.echo(f"[FARM PROBE] Error: {type(exc).__name__}: {exc}")

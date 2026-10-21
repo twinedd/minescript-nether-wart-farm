@@ -23,23 +23,28 @@ profile you actually launch.
 
 ## Use
 
-Place an accessible chest within **24 blocks horizontally and 16 vertically**
-of your starting spot. Keep one nether wart for planting and at least ten
-inventory slots free. Stand near the center of your farm, then use these
+Place accessible chests near the farm. Keep one nether wart for planting and
+at least ten inventory slots free. Stand near your farm, then use these
 commands in Minecraft chat:
 
 | Command | Action |
 | --- | --- |
-| `\farm_probe` | Check detected floors and chests without harvesting. |
-| `\start` | Keep checking, harvesting, replanting, and storing wart. |
-| `\start once` | Wait for one harvest cycle, then stop. |
+| `\farm_probe` | Check detected floors and nearby chest candidates without harvesting. |
+| `\start` | Choose chests, then keep harvesting, replanting, and storing wart. |
+| `\start once` | Choose chests, run one harvest cycle, then stop. |
+| `\farm_done` | Finish choosing chests and begin farming. |
 | `\farm_status` | Show the latest status. |
 | `\stop` | Stop the script and Baritone. |
 
-Run `\farm_probe` first. If it misses a floor, move closer to the farm's
-center and make sure the area is loaded. A farm needs at least one planted
-wart to be detected. The script keeps one wart stack for replanting, uses
-another chest if the first is full, and stops if it cannot store the harvest.
+Run `\farm_probe` first. Then enter `\start`, **right-click each chest** you
+want the bot to use, close the chest menu between clicks, stand near the
+center of the farm, and enter `\farm_done`. A double chest only needs one
+click. `\stop` cancels chest selection or farming.
+
+If the probe misses a floor, move closer to the farm's center and make sure
+the area is loaded. A farm needs at least one planted wart to be detected.
+The script keeps one wart stack for replanting, uses another selected chest
+if the first is full, and stops if it cannot store the harvest.
 
 You can change the 85% threshold and scan distances in `farm_config.json`.
 For errors, check `farm.log` in the game's `minescript` folder. Minecraft must
@@ -55,6 +60,7 @@ licensed; Baritone retains its LGPL-3.0 license.
 
 Установите Fabric 1.21.11, Fabric API, Minescript, Python 3 и JAR Baritone из
 репозитория. Файлы из `minescript/` положите в папку скриптов игры. В чате
-выполните `\install_mappings`, затем `\farm_probe` и `\start`.
-Бот собирает и сажает нарост, излишки кладёт в ближайшие сундуки.
+выполните `\install_mappings`, затем `\farm_probe` и `\start`. Кликните ПКМ
+по нужным сундукам, закрывая их меню, встаньте у центра фермы и введите
+`\farm_done`. Бот собирает и сажает нарост, излишки кладёт в выбранные сундуки.
 Остановка — `\stop`; продажи и автоматического входа нет.

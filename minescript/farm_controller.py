@@ -6,9 +6,11 @@ Run in Minecraft chat as ``\start``. ``\start once`` runs a single harvest.
 import json
 import math
 from pathlib import Path
+from queue import Empty
 import sys
 import time
 import traceback
+import uuid
 
 import minescript as ms
 from farm_logic import WART, at_approach, discover_farms, harvest_complete, item_count, maturity_target, needs_harvest, region_air, survey_from_blocks, world_mode
@@ -18,6 +20,8 @@ CONFIG = json.loads((ROOT / "farm_config.json").read_text(encoding="utf-8"))
 STATUS = ROOT / "farm.status.json"
 STOP = ROOT / "farm.stop"
 LOG = ROOT / "farm.log"
+CHEST_SELECTION = ROOT / "farm.chest_selection.json"
+CHEST_SELECTION_DONE = ROOT / "farm.chest_selection.done"
 
 
 def report(phase, detail="", *, echo=False):
@@ -192,6 +196,117 @@ def wait_menu(predicate, seconds=8):
 def chest_distance(chest):
     x, y, z = ms.player_position()
     return math.dist((x, y + 1.62, z), (chest["x"] + 0.5, chest["y"] + 0.5, chest["z"] + 0.5))
+
+
+def is_chest(block):
+    return bool(block and block.split("[", 1)[0] in
+                ("minecraft:chest", "minecraft:trapped_chest"))
+
+
+def chest_property(block, name):
+    marker = name + "="
+    return block.split(marker, 1)[1].split(",", 1)[0].split("]", 1)[0] if marker in block else None
+
+
+def chest_group_key(chest, block):
+    """Treat both halves of a double chest as one storage container."""
+    position = (chest["x"], chest["y"], chest["z"])
+    chest_type = chest_property(block, "type")
+    facing = chest_property(block, "facing")
+    if chest_type not in ("left", "right") or facing is None:
+        return position
+    opposite = "right" if chest_type == "left" else "left"
+    for dx, dz in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        other_position = (position[0] + dx, position[1], position[2] + dz)
+        other = ms.getblock(*other_position)
+        if (is_chest(other) and other.split("[", 1)[0] == block.split("[", 1)[0] and
+                chest_property(other, "type") == opposite and
+                chest_property(other, "facing") == facing):
+            return min(position, other_position)
+    return position
+
+
+def plan_selected_chest(chest):
+    """Record walkable cells beside a chest and the position used to click it."""
+    x, y, z = chest["x"], chest["y"], chest["z"]
+    player = ms.player_position()
+    choices = []
+    for nx, nz in ((x - 1, z), (x + 1, z), (x, z - 1), (x, z + 1)):
+        for feet_y in (y, y - 1):
+            feet = ms.getblock(nx, feet_y, nz)
+            head = ms.getblock(nx, feet_y + 1, nz)
+            ground = ms.getblock(nx, feet_y - 1, nz)
+            if ((region_air(feet) or (feet and feet.startswith(WART + "["))) and
+                    region_air(head) and ground not in
+                    (None, "minecraft:air", "minecraft:void_air", "minecraft:water", "minecraft:lava")):
+                choices.append((nx, feet_y, nz))
+    choices.sort(key=lambda p: math.dist((p[0] + 0.5, p[1], p[2] + 0.5), player))
+    clicked_from = (math.floor(player[0]), round(player[1]), math.floor(player[2]))
+    if clicked_from not in choices and chest_distance(chest) <= 4.4:
+        choices.insert(0, clicked_from)
+    choices = choices[:3]
+    if not choices:
+        raise RuntimeError(f"No reachable standing position beside chest {chest}")
+    approaches = tuple({"x": ax, "y": ay, "z": az} for ax, ay, az in choices)
+    return {"chest": chest, "approach": approaches[0], "approaches": approaches}
+
+
+def save_chest_selection(session, plans):
+    data = {"session": session, "chests": [plan["chest"] for plan in plans]}
+    temporary = CHEST_SELECTION.with_suffix(".tmp")
+    temporary.write_text(json.dumps(data), encoding="utf-8")
+    temporary.replace(CHEST_SELECTION)
+
+
+def select_chests():
+    """Collect right-clicked chests until the user runs \\farm_done."""
+    session = uuid.uuid4().hex
+    CHEST_SELECTION_DONE.unlink(missing_ok=True)
+    plans = []
+    selected_groups = set()
+    save_chest_selection(session, plans)
+    report("SELECT CHESTS", "Right-click each storage chest, close its menu, then type \\farm_done to start. Use \\stop to cancel.", echo=True)
+    heartbeat = time.monotonic()
+    with ms.EventQueue() as events:
+        events.register_mouse_listener()
+        while True:
+            halted()
+            if CHEST_SELECTION_DONE.exists():
+                requested_session = CHEST_SELECTION_DONE.read_text(encoding="utf-8").strip()
+                CHEST_SELECTION_DONE.unlink(missing_ok=True)
+                if requested_session == session and plans:
+                    report("SELECT CHESTS", f"Confirmed {len(plans)} storage chests; starting farm", echo=True)
+                    return tuple(plans)
+            if time.monotonic() - heartbeat >= 30:
+                report("SELECT CHESTS", f"Waiting for \\farm_done; {len(plans)} chests selected")
+                heartbeat = time.monotonic()
+            try:
+                event = events.get(timeout=0.2)
+            except Empty:
+                continue
+            if event.type != ms.EventType.MOUSE or event.button != 1 or event.action != 1 or event.screen:
+                continue
+            try:
+                hit = ms.player_get_targeted_block(5)
+                if hit is None:
+                    continue
+                x, y, z = map(int, hit.position)
+                chest = {"x": x, "y": y, "z": z}
+                block = ms.getblock(x, y, z)
+                if not is_chest(block):
+                    continue
+                group = chest_group_key(chest, block)
+                if group in selected_groups:
+                    report("SELECT CHESTS", f"Chest {chest} is already selected", echo=True)
+                    continue
+                plan = plan_selected_chest(chest)
+            except Exception as exc:
+                report("SELECT CHESTS", f"Could not read that chest click: {exc}", echo=True)
+                continue
+            plans.append(plan)
+            selected_groups.add(group)
+            save_chest_selection(session, plans)
+            report("SELECT CHESTS", f"Added chest {len(plans)}: {chest}. Close its menu, or type \\farm_done when finished.", echo=True)
 
 
 def find_storage(origin):
@@ -423,15 +538,17 @@ def main():
             return
         report("RECOVERY", "Removing a stale lock after the previous run ended", echo=True)
     STOP.unlink(missing_ok=True)
+    CHEST_SELECTION.unlink(missing_ok=True)
+    CHEST_SELECTION_DONE.unlink(missing_ok=True)
     lock.write_text(str(time.time()), encoding="utf-8")
     try:
         mode = check_location()
+        storage = select_chests()
+        CHEST_SELECTION.unlink(missing_ok=True)
+        CHEST_SELECTION_DONE.unlink(missing_ok=True)
         px, py, pz = ms.player_position()
         origin = (math.floor(px), math.floor(py), math.floor(pz))
         farms = scan_farms(origin)
-        storage = find_storage(origin)
-        if not storage:
-            raise RuntimeError("No harvest chest found. Place an accessible chest nearby and check with \\farm_probe")
         # Clear leftover harvest from an earlier run before evaluating inventory space.
         store_in_chests(storage)
         next_scan = time.monotonic() + CONFIG["rescanSeconds"]
@@ -441,9 +558,6 @@ def main():
             halted()
             if time.monotonic() >= next_scan:
                 farms = scan_farms(origin)
-                storage = find_storage(origin)
-                if not storage:
-                    raise RuntimeError("Harvest chest is no longer visible; harvest stopped")
                 next_scan = time.monotonic() + CONFIG["rescanSeconds"]
             ready = []
             for farm in farms:
@@ -482,3 +596,5 @@ def main():
         finally:
             lock.unlink(missing_ok=True)
             STOP.unlink(missing_ok=True)
+            CHEST_SELECTION.unlink(missing_ok=True)
+            CHEST_SELECTION_DONE.unlink(missing_ok=True)
